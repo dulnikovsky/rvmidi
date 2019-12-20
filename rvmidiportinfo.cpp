@@ -1,17 +1,6 @@
 #include "rvmidiportinfo.h"
 #include "rvmidiportinfo_p.h"
 
-#ifdef Q_OS_LINUX
-#include <alsa/asoundlib.h>
-#endif
-#ifdef Q_OS_MACOS
-#include <AudioToolbox/AudioToolbox.h>
-#endif
-#ifdef Q_OS_WIN
-#include <windows.h>
-#include <mmsystem.h>
-#endif
-
 #include <QScopedPointer>
 
 /*!
@@ -86,42 +75,4 @@ bool RvMidiPortInfo::isVirtual() const
    return d_ptr->isVirtual;
 }
 
-QList<RvMidiPortInfo> RvMidiPortInfo::readableMidiPorts()
-{
-    QList<RvMidiPortInfo> portlist;
 
-    unsigned int numdevs = midiInGetNumDevs();
-    for( unsigned int i = 0; i<numdevs; i++)
-    {
-        MIDIINCAPS caps;
-        midiInGetDevCaps(i, &caps, sizeof (caps));
-
-        QScopedPointer<RvMidiPortInfoPrivate> info(new RvMidiPortInfoPrivate);
-
-        info->id = i;
-        info->name = QString::fromWCharArray( caps.szPname);
-        portlist.append(RvMidiPortInfo( *info.take()));
-
-    }
-    return portlist;
-}
-
-QList<RvMidiPortInfo> RvMidiPortInfo::writableMidiPorts()
-{
-    QList<RvMidiPortInfo> portlist;
-
-    unsigned int numdevs = midiOutGetNumDevs();
-    for( unsigned int i = 0; i<numdevs; i++)
-    {
-        MIDIOUTCAPS caps;
-        midiOutGetDevCaps(i, &caps, sizeof (caps));
-
-        QScopedPointer<RvMidiPortInfoPrivate> info(new RvMidiPortInfoPrivate);
-
-        info->id = i;
-        info->name = QString::fromWCharArray( caps.szPname);
-        portlist.append(RvMidiPortInfo( *info.take()));
-
-    }
-    return portlist;
-}
