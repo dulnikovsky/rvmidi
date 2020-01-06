@@ -25,14 +25,18 @@ DEFINES += QT_DEPRECATED_WARNINGS
 SOURCES += \
         rvmidi.cpp \
         rvmidiclientportid.cpp \
-        rvmidiportinfo.cpp
+        rvmidievent.cpp \
+        rvmidiportinfo.cpp \
+        rvmidiportmodel.cpp
 
 HEADERS += \
         rvmidi.h \
         rvmidi_global.h  \
         rvmidiclientportid.h \
+        rvmidievent.h \
         rvmidiportinfo.h \
-        rvmidiportinfo_p.h
+        rvmidiportinfo_p.h \
+        rvmidiportmodel.h
 
 unix {
     target.path = /usr/lib

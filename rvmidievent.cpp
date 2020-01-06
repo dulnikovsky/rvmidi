@@ -19,53 +19,12 @@
 ** be met: https://www.gnu.org/licenses/gpl-2.0.html and
 ** https://www.gnu.org/licenses/gpl-3.0.html.
 **/
-#ifndef RVMIDI_H
-#define RVMIDI_H
 
-#include <QObject>
+#include "rvmidievent.h"
 
-#include "rvmidi_global.h"
-
-#include "rvmidiportinfo.h"
-
-#ifdef Q_OS_LINUX
-typedef struct _snd_seq snd_seq_t;
-typedef snd_seq_t* MidiClientHandle;
-
-Q_DECLARE_METATYPE(RvMidiClientPortId)
-
-#endif
-
-#ifdef Q_OS_MACOS
-typedef quint32 MidiClientHandle;
-#endif
-
-#ifdef Q_OS_WIN
-typedef quint32 MidiClientHandle;
-#endif
-
-class RVMIDISHARED_EXPORT RvMidi : public QObject
+RvMidiEvent::~RvMidiEvent()
 {
-    Q_OBJECT
-
-public:
-    RvMidi() = delete;
-    explicit RvMidi( const QString &clientName, QObject *parent = nullptr);
-
-    ~RvMidi();
-
-    QList<RvMidiPortInfo> readableMidiPorts();
-
-    QList<RvMidiPortInfo> writableMidiPorts();
-
-private:
-    MidiClientHandle handle;
-    RvMidiClientPortId thisInPort;
-    RvMidiClientPortId thisOutPort;
-
-#ifdef Q_OS_LINUX
-    QList<RvMidiPortInfo> midiPortsAlsa( unsigned int capFilter);
-#endif
-};
-
-#endif // RVMIDI_H
+    if( type() == static_cast<int>(UserEventTypes::MidiSysEx) && dataUnion.dataArray != nullptr)
+        delete dataUnion.dataArray;
+    //qDebug("MIDI Event deleted");
+}

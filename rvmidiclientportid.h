@@ -44,17 +44,22 @@ public:
     }
     ~RvMidiClientPortId() {}
 
-    RvMidiClientPortId(int clientId, int portId)
+    RvMidiClientPortId( unsigned char clientId, unsigned char portId)
         : client(clientId), port(portId) {}
 
-    int clientId() const  { return client; }
-    int portId() const { return port; }
+    unsigned char clientId() const  { return client; }
+    unsigned char portId() const { return port; }
 
     friend bool operator ==(const RvMidiClientPortId &a, const RvMidiClientPortId &b);
 
+    QString toString() const
+    {
+        return QString::number(client) + ":" + QString::number(port);
+    }
+
 private:
-    int client;
-    int port;
+    unsigned char client;
+    unsigned char port;
 };
 
 uint qHash(const RvMidiClientPortId &id);

@@ -23,6 +23,7 @@
 
 #ifdef Q_OS_LINUX
 #include <alsa/asoundlib.h>
+#include <QtConcurrent/QtConcurrent>
 #endif
 #ifdef Q_OS_MACOS
 #include <AudioToolbox/AudioToolbox.h>
@@ -35,10 +36,14 @@
 #include "rvmidiportinfo_p.h"
 #include <QScopedPointer>
 
+#include "rvmidievent.h"
+
 RvMidi::RvMidi( const QString &clientName, QObject *parent)
     :QObject( parent)
 {
 #ifdef Q_OS_LINUX
+    QMetaType::registerConverter( &RvMidiClientPortId::toString);
+
     int err;
     err = snd_seq_open(&handle, "default", SND_SEQ_OPEN_DUPLEX, 0);
 
@@ -68,10 +73,115 @@ RvMidi::RvMidi( const QString &clientName, QObject *parent)
     {
         puts ("snd_seq_subscribe_port on the announce port fails: ");
     }
+
+    QtConcurrent::run([this]
+    {
+        snd_seq_event_t *ev;
+        RvMidiEvent *midievent = nullptr;
+        while (snd_seq_event_input(handle, &ev) >= 0)
+        {
+            if(ev->type==SND_SEQ_EVENT_SYSEX)
+            {
+                QByteArray arr(static_cast<char *>(ev->data.ext.ptr), static_cast<int>(ev->data.ext.len));
+                if( midievent != nullptr)
+                {
+                    QByteArray *data = midievent->sysExData();
+                    data->append(arr);
+                }
+                else
+                {
+                    midievent = new RvMidiEvent(static_cast<QEvent::Type>(UserEventTypes::MidiSysEx));
+                    quint32 port = ev->source.port;
+                    port |= static_cast<quint32>(ev->source.client) << 8;
+                    midievent->setPort(port);
+                    QByteArray *data = midievent->sysExData();
+                    *data=arr;
+                }
+                if(static_cast<unsigned char>(arr.at(arr.size()-1)) == 0xF7)
+                {
+                    //QApplication::postEvent(parent(), midievent);
+                    midievent=nullptr;
+                }
+            }
+            else if(ev->type==SND_SEQ_EVENT_PGMCHANGE)
+            {
+                midievent = new RvMidiEvent(static_cast<QEvent::Type>(UserEventTypes::MidiCommon));
+                midievent->setStatusByte( (static_cast< unsigned char>( RvMidiEvent::MidiEventType::ProgramChange) << 4) | ( ev->data.raw8.d[0] & 0x0F ) );
+                midievent->setData1( ev->data.raw8.d[8] );
+                midievent->setData2(0);
+                //QApplication::postEvent(parent(), midievent);
+            }
+            else if(ev->type==SND_SEQ_EVENT_CONTROLLER)
+            {
+                midievent = new RvMidiEvent(static_cast<QEvent::Type>(UserEventTypes::MidiCommon));
+                midievent->setStatusByte( (static_cast< unsigned char>( RvMidiEvent::MidiEventType::ControlChange) << 4) | ( ev->data.raw8.d[0] & 0x0F ) );
+                midievent->setData1( ev->data.raw8.d[4]);
+                midievent->setData2( ev->data.raw8.d[8]);
+                //QApplication::postEvent(parent(), midievent);
+            }
+            else if(ev->type==SND_SEQ_EVENT_PORT_SUBSCRIBED)
+            {
+                snd_seq_connect conn = ev->data.connect;
+                //emit portConnectionStatusChanged( RvMidiClientPortId(conn.sender.client, conn.sender.port),
+                //                                  RvMidiClientPortId(conn.dest.client, conn.dest.port),
+                //                                  true);
+
+            }
+            else if(ev->type==SND_SEQ_EVENT_PORT_UNSUBSCRIBED)
+            {
+                snd_seq_connect conn = ev->data.connect;
+                //emit portConnectionStatusChanged( RvMidiClientPortId(conn.sender.client, conn.sender.port),
+                //                                  RvMidiClientPortId(conn.dest.client, conn.dest.port),
+                //                                  false);
+
+            }
+            else if(ev->type==SND_SEQ_EVENT_CLIENT_START)
+            {
+                snd_seq_addr_t addr = ev->data.addr;
+                //emit portClientPortStatusChanged( RvMidiClientPortId(addr.client, addr.port), true);
+            }
+            else if(ev->type==SND_SEQ_EVENT_CLIENT_EXIT)
+            {
+                break;
+                snd_seq_addr_t addr = ev->data.addr;
+                //emit portClientPortStatusChanged( RvMidiClientPortId(addr.client, addr.port), false);
+            }
+            else if(ev->type==SND_SEQ_EVENT_SENSING)
+            {
+                //qDebug("got SND_SEQ_EVENT_SENSING");
+            }
+
+            qDebug("MIDI Event. Type = %d",ev->type);
+            snd_seq_free_event(ev);
+        }
+    });
+
 #endif
 #ifdef Q_OS_MACOS
     MIDIClientCreate( CFStringCreateWithCString( kCFAllocatorDefault, clientName.toLocal8Bit().constData(), kCFStringEncodingASCII), MIDIEngineNotifyProc, this, &handle);
 #endif
+}
+
+RvMidi::~RvMidi()
+{
+    snd_seq_event_t event;
+    snd_seq_ev_clear( &event);
+    snd_seq_ev_set_subs( &event);
+    snd_seq_ev_set_direct( &event);
+    event.type = SND_SEQ_EVENT_CLIENT_EXIT;
+
+    event.source.port = thisOutPort.portId();
+    event.source.client = thisOutPort.clientId();
+
+    event.dest.port = thisInPort.portId();
+    event.dest.client = thisInPort.clientId();
+
+    snd_seq_event_output_direct(handle, &event);
+    snd_seq_drain_output( handle);
+
+    //inThreadFuture.waitForFinished();
+
+    qDebug("DESCRUCTOR");
 }
 
 QList<RvMidiPortInfo> RvMidi::readableMidiPorts()
@@ -164,3 +274,4 @@ QList<RvMidiPortInfo> RvMidi::midiPortsAlsa(unsigned int capFilter)
     return portlist;
 }
 #endif
+
