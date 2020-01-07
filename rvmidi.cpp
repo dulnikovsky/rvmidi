@@ -46,6 +46,12 @@ RvMidi::RvMidi( const QString &clientName, QObject *parent)
 
     int err;
     err = snd_seq_open(&handle, "default", SND_SEQ_OPEN_DUPLEX, 0);
+    if( err < 0)
+        return;
+
+    int clientID = snd_seq_client_id( handle);
+    if( clientID < 0)
+        return;
 
     snd_seq_set_client_name(handle, clientName.toLocal8Bit().constData());
 
@@ -54,25 +60,11 @@ RvMidi::RvMidi( const QString &clientName, QObject *parent)
     int outPort = snd_seq_create_simple_port(handle, clientName.toLocal8Bit().constData(),
                                              SND_SEQ_PORT_CAP_READ|SND_SEQ_PORT_CAP_SUBS_READ, SND_SEQ_PORT_TYPE_MIDI_GENERIC );
 
-    thisInPort = RvMidiClientPortId( snd_seq_client_id(handle), inPort);
-    thisOutPort = RvMidiClientPortId( snd_seq_client_id(handle), outPort);
+    thisInPort = RvMidiClientPortId( static_cast< unsigned char >(clientID), static_cast< unsigned char >(inPort));
+    thisOutPort = RvMidiClientPortId( static_cast< unsigned char >(clientID), static_cast< unsigned char >( outPort));
 
     // Subscribe to the announce port.
-    snd_seq_port_subscribe_t* subs;
-    snd_seq_port_subscribe_alloca(&subs);
-    snd_seq_addr_t announce_sender;
-    snd_seq_addr_t announce_dest;
-    announce_sender.client = SND_SEQ_CLIENT_SYSTEM;
-    announce_sender.port = SND_SEQ_PORT_SYSTEM_ANNOUNCE;
-    announce_dest.client = snd_seq_client_id( handle);
-    announce_dest.port = thisInPort.portId();
-    snd_seq_port_subscribe_set_sender(subs, &announce_sender);
-    snd_seq_port_subscribe_set_dest(subs, &announce_dest);
-    err = snd_seq_subscribe_port(handle, subs);
-    if (err != 0)
-    {
-        puts ("snd_seq_subscribe_port on the announce port fails: ");
-    }
+    subscribeReadablePortAlsa( SND_SEQ_CLIENT_SYSTEM, SND_SEQ_PORT_SYSTEM_ANNOUNCE);
 
     QtConcurrent::run([this]
     {
@@ -184,6 +176,16 @@ RvMidi::~RvMidi()
     qDebug("DESCRUCTOR");
 }
 
+bool RvMidi::connectReadablePort( RvMidiClientPortId portID)
+{
+
+}
+
+bool RvMidi::connectWritablePort( RvMidiClientPortId portID)
+{
+
+}
+
 QList<RvMidiPortInfo> RvMidi::readableMidiPorts()
 {
     QList<RvMidiPortInfo> portlist;
@@ -273,5 +275,46 @@ QList<RvMidiPortInfo> RvMidi::midiPortsAlsa(unsigned int capFilter)
     }
     return portlist;
 }
+
+bool RvMidi::subscribeReadablePortAlsa(unsigned char senderClient, unsigned char senderPort)
+{
+    int clientID = snd_seq_client_id( handle);
+    if( clientID < 0)
+        return false;
+
+    snd_seq_port_subscribe_t* subs;
+    snd_seq_port_subscribe_alloca(&subs);
+    snd_seq_addr_t senderAddr;
+    snd_seq_addr_t destAddr;
+    senderAddr.client = senderClient;
+    senderAddr.port = senderPort;
+    destAddr.client = static_cast< unsigned char >( clientID);
+    destAddr.port = thisInPort.portId();
+    snd_seq_port_subscribe_set_sender(subs, &senderAddr);
+    snd_seq_port_subscribe_set_dest(subs, &destAddr);
+    int err = snd_seq_subscribe_port(handle, subs);
+    return err == 0;
+}
+
+bool RvMidi::subscribeWritablePortAlsa( unsigned char destinationClient, unsigned char destinationPort)
+{
+    int clientID = snd_seq_client_id( handle);
+    if( clientID < 0)
+        return false;
+
+    snd_seq_port_subscribe_t* subs;
+    snd_seq_port_subscribe_alloca(&subs);
+    snd_seq_addr_t senderAddr;
+    snd_seq_addr_t destAddr;
+    senderAddr.client = static_cast< unsigned char >( clientID);
+    senderAddr.port = thisOutPort.portId();
+    destAddr.client = destinationClient;
+    destAddr.port = destinationPort;
+    snd_seq_port_subscribe_set_sender(subs, &senderAddr);
+    snd_seq_port_subscribe_set_dest(subs, &destAddr);
+    int err = snd_seq_subscribe_port(handle, subs);
+    return err == 0;
+}
+
 #endif
 

@@ -52,11 +52,23 @@ public:
     RvMidi() = delete;
     explicit RvMidi( const QString &clientName, QObject *parent = nullptr);
 
+    RvMidi( RvMidi const&) = delete;
+    RvMidi& operator=( RvMidi const&) = delete;
+
     ~RvMidi();
 
-    QList<RvMidiPortInfo> readableMidiPorts();
+    bool connectReadablePort( RvMidiClientPortId portID);
+    bool connectWritablePort( RvMidiClientPortId portID);
 
+    bool disconnectReadablePort( RvMidiClientPortId portID);
+    bool disconnectWritablePort( RvMidiClientPortId portID);
+
+    QList<RvMidiPortInfo> readableMidiPorts();
     QList<RvMidiPortInfo> writableMidiPorts();
+
+signals:
+    void readablePortConnectionChanged( RvMidiClientPortId portID, bool isConnected);
+    void writablePortConnectionChanged( RvMidiClientPortId portID, bool isConnected);
 
 private:
     MidiClientHandle handle;
@@ -65,6 +77,9 @@ private:
 
 #ifdef Q_OS_LINUX
     QList<RvMidiPortInfo> midiPortsAlsa( unsigned int capFilter);
+    bool subscribeReadablePortAlsa( unsigned char senderClient, unsigned char senderPort);
+    bool subscribeWritablePortAlsa( unsigned char destinationClient, unsigned char destinationPort);
+
 #endif
 };
 
