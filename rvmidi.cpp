@@ -179,15 +179,97 @@ RvMidi::~RvMidi()
 
 bool RvMidi::connectReadablePort( RvMidiClientPortId portID)
 {
-
+#ifdef Q_OS_LINUX
+    return subscribeReadablePortAlsa( portID.clientId(), portID.portId());
+#endif
 }
 
 bool RvMidi::connectWritablePort( RvMidiClientPortId portID)
 {
-
+#ifdef Q_OS_LINUX
+    return subscribeWritablePortAlsa( portID.clientId(), portID.portId());
+#endif
 }
 
-QList<RvMidiPortInfo> RvMidi::readableMidiPorts()
+bool RvMidi::disconnectReadablePort(RvMidiClientPortId portID)
+{
+#ifdef Q_OS_LINUX
+    return true;
+#endif
+}
+
+bool RvMidi::disconnectWritablePort(RvMidiClientPortId portID)
+{
+#ifdef Q_OS_LINUX
+    return true;
+#endif
+}
+
+bool RvMidi::isConnectedToReadablePort(RvMidiClientPortId portID) const
+{
+    bool ret = false;
+
+#ifdef Q_OS_LINUX
+    int err = 0;
+    snd_seq_query_subscribe_t *subsquery;
+    snd_seq_query_subscribe_alloca( &subsquery);
+
+    snd_seq_query_subscribe_set_type( subsquery, SND_SEQ_QUERY_SUBS_READ);
+    snd_seq_query_subscribe_set_client( subsquery, portID.clientId());
+    snd_seq_query_subscribe_set_port( subsquery, portID.portId());
+
+    int i = 0;
+    while(1)
+    {
+        snd_seq_query_subscribe_set_index( subsquery, i);
+        err = snd_seq_query_port_subscribers( handle, subsquery);
+        if( err < 0)
+            break;
+
+        const snd_seq_addr_t *addr;
+        addr = snd_seq_query_subscribe_get_addr( subsquery);
+        if(addr->client == thisInPort.clientId() && addr->port == thisInPort.portId())
+            return true;
+
+        i++;
+    }
+#endif
+    return ret;
+}
+
+bool RvMidi::isConnectedToWritablePort(RvMidiClientPortId portID) const
+{
+    bool ret = false;
+
+#ifdef Q_OS_LINUX
+    int err = 0;
+    snd_seq_query_subscribe_t *subsquery;
+    snd_seq_query_subscribe_alloca( &subsquery);
+
+    snd_seq_query_subscribe_set_type( subsquery, SND_SEQ_QUERY_SUBS_WRITE);
+    snd_seq_query_subscribe_set_client( subsquery, portID.clientId());
+    snd_seq_query_subscribe_set_port( subsquery, portID.portId());
+
+    int i = 0;
+    while(1)
+    {
+        snd_seq_query_subscribe_set_index( subsquery, i);
+        err = snd_seq_query_port_subscribers( handle, subsquery);
+        if( err < 0)
+            break;
+
+        const snd_seq_addr_t *addr;
+        addr = snd_seq_query_subscribe_get_addr( subsquery);
+        if(addr->client == thisOutPort.clientId() && addr->port == thisOutPort.portId())
+            return true;
+
+        i++;
+    }
+#endif
+    return ret;
+}
+
+QList<RvMidiPortInfo> RvMidi::readableMidiPorts() const
 {
     QList<RvMidiPortInfo> portlist;
 #ifdef Q_OS_LINUX
@@ -212,7 +294,7 @@ QList<RvMidiPortInfo> RvMidi::readableMidiPorts()
 }
 
 
-QList<RvMidiPortInfo> RvMidi::writableMidiPorts()
+QList<RvMidiPortInfo> RvMidi::writableMidiPorts() const
 {
     QList<RvMidiPortInfo> portlist;
 #ifdef Q_OS_LINUX
@@ -238,7 +320,7 @@ QList<RvMidiPortInfo> RvMidi::writableMidiPorts()
 }
 
 #ifdef Q_OS_LINUX
-QList<RvMidiPortInfo> RvMidi::midiPortsAlsa(unsigned int capFilter)
+QList<RvMidiPortInfo> RvMidi::midiPortsAlsa(unsigned int capFilter) const
 {
     QList<RvMidiPortInfo> portlist;
 
@@ -283,17 +365,17 @@ bool RvMidi::subscribeReadablePortAlsa(unsigned char senderClient, unsigned char
     if( clientID < 0)
         return false;
 
-    snd_seq_port_subscribe_t* subs;
-    snd_seq_port_subscribe_alloca(&subs);
+    snd_seq_port_subscribe_t *subs;
+    snd_seq_port_subscribe_alloca( &subs);
     snd_seq_addr_t senderAddr;
     snd_seq_addr_t destAddr;
     senderAddr.client = senderClient;
     senderAddr.port = senderPort;
     destAddr.client = static_cast< unsigned char >( clientID);
     destAddr.port = thisInPort.portId();
-    snd_seq_port_subscribe_set_sender(subs, &senderAddr);
-    snd_seq_port_subscribe_set_dest(subs, &destAddr);
-    int err = snd_seq_subscribe_port(handle, subs);
+    snd_seq_port_subscribe_set_sender( subs, &senderAddr);
+    snd_seq_port_subscribe_set_dest( subs, &destAddr);
+    int err = snd_seq_subscribe_port( handle, subs);
     return err == 0;
 }
 
@@ -303,17 +385,17 @@ bool RvMidi::subscribeWritablePortAlsa( unsigned char destinationClient, unsigne
     if( clientID < 0)
         return false;
 
-    snd_seq_port_subscribe_t* subs;
-    snd_seq_port_subscribe_alloca(&subs);
+    snd_seq_port_subscribe_t *subs;
+    snd_seq_port_subscribe_alloca( &subs);
     snd_seq_addr_t senderAddr;
     snd_seq_addr_t destAddr;
     senderAddr.client = static_cast< unsigned char >( clientID);
     senderAddr.port = thisOutPort.portId();
     destAddr.client = destinationClient;
     destAddr.port = destinationPort;
-    snd_seq_port_subscribe_set_sender(subs, &senderAddr);
-    snd_seq_port_subscribe_set_dest(subs, &destAddr);
-    int err = snd_seq_subscribe_port(handle, subs);
+    snd_seq_port_subscribe_set_sender( subs, &senderAddr);
+    snd_seq_port_subscribe_set_dest( subs, &destAddr);
+    int err = snd_seq_subscribe_port( handle, subs);
     return err == 0;
 }
 

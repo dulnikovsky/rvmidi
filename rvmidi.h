@@ -63,8 +63,11 @@ public:
     bool disconnectReadablePort( RvMidiClientPortId portID);
     bool disconnectWritablePort( RvMidiClientPortId portID);
 
-    QList<RvMidiPortInfo> readableMidiPorts();
-    QList<RvMidiPortInfo> writableMidiPorts();
+    bool isConnectedToReadablePort( RvMidiClientPortId portID) const;
+    bool isConnectedToWritablePort( RvMidiClientPortId portID) const;
+
+    QList<RvMidiPortInfo> readableMidiPorts() const;
+    QList<RvMidiPortInfo> writableMidiPorts() const;
 
 signals:
     void readablePortConnectionChanged( RvMidiClientPortId portID, bool isConnected);
@@ -76,10 +79,9 @@ private:
     RvMidiClientPortId thisOutPort;
 
 #ifdef Q_OS_LINUX
-    QList<RvMidiPortInfo> midiPortsAlsa( unsigned int capFilter);
+    QList<RvMidiPortInfo> midiPortsAlsa( unsigned int capFilter) const;
     bool subscribeReadablePortAlsa( unsigned char senderClient, unsigned char senderPort);
     bool subscribeWritablePortAlsa( unsigned char destinationClient, unsigned char destinationPort);
-
 #endif
 };
 
