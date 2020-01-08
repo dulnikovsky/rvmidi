@@ -38,6 +38,8 @@
 
 #include "rvmidievent.h"
 
+#include <QCoreApplication>
+
 RvMidi::RvMidi( const QString &clientName, QObject *parent)
     :QObject( parent)
 {
@@ -107,9 +109,9 @@ RvMidi::RvMidi( const QString &clientName, QObject *parent)
             {
                 midievent = new RvMidiEvent(static_cast<QEvent::Type>(UserEventTypes::MidiCommon));
                 midievent->setStatusByte( (static_cast< unsigned char>( RvMidiEvent::MidiEventType::ControlChange) << 4) | ( ev->data.raw8.d[0] & 0x0F ) );
-                midievent->setData1( ev->data.raw8.d[4]);
-                midievent->setData2( ev->data.raw8.d[8]);
-                //QApplication::postEvent(parent(), midievent);
+                midievent->setData1( static_cast<quint8>( ev->data.control.param));
+                midievent->setData2( static_cast<quint8>( ev->data.control.value));
+                QCoreApplication::postEvent( this->parent(), midievent, Qt::HighEventPriority);
             }
             else if(ev->type==SND_SEQ_EVENT_PORT_SUBSCRIBED)
             {
@@ -130,16 +132,25 @@ RvMidi::RvMidi( const QString &clientName, QObject *parent)
                 else if( destination == thisInPort)
                     emit readablePortConnectionChanged( sender, false);
             }
+            else if(ev->type==SND_SEQ_EVENT_PORT_START || ev->type==SND_SEQ_EVENT_PORT_CHANGE)
+            {
+                //snd_seq_addr_t addr = ev->data.addr;
+                emit portListChanged();
+            }
+            else if(ev->type==SND_SEQ_EVENT_PORT_EXIT)
+            {
+                //snd_seq_addr_t addr = ev->data.addr;
+                emit portListChanged();
+            }
             else if(ev->type==SND_SEQ_EVENT_CLIENT_START)
             {
-                snd_seq_addr_t addr = ev->data.addr;
-                //emit portClientPortStatusChanged( RvMidiClientPortId(addr.client, addr.port), true);
+                ;
             }
             else if(ev->type==SND_SEQ_EVENT_CLIENT_EXIT)
             {
-                break;
-                snd_seq_addr_t addr = ev->data.addr;
-                //emit portClientPortStatusChanged( RvMidiClientPortId(addr.client, addr.port), false);
+                snd_seq_addr_t addr = ev->source;
+                if( addr.port == thisOutPort.portId() && addr.client == thisOutPort.clientId())
+                    break;
             }
             else if(ev->type==SND_SEQ_EVENT_SENSING)
             {

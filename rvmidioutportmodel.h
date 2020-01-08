@@ -1,5 +1,5 @@
-#ifndef RVMIDIPORTMODEL_H
-#define RVMIDIPORTMODEL_H
+#ifndef RVMIDIOUTPORTMODEL_H
+#define RVMIDIOUTPORTMODEL_H
 
 #include <QAbstractItemModel>
 
@@ -7,14 +7,12 @@
 
 class RvMidi;
 
-class RvMidiPortModel : public QAbstractItemModel
+class RvMidiOutPortModel : public QAbstractItemModel
 {
     Q_OBJECT
 
 public:
-    enum Direction{ ReadablePorts, WritablePorts };
-
-    explicit RvMidiPortModel(RvMidi &rvmidi, Direction d, QObject *parent = nullptr);
+    explicit RvMidiOutPortModel(RvMidi *rvmidi, QObject *parent = nullptr);
 
     QVariant data(const QModelIndex &index, int role) const override;
 
@@ -28,10 +26,12 @@ public:
     QModelIndex index(int row, int column, const QModelIndex &parent = QModelIndex()) const override { Q_UNUSED(parent); return createIndex( row, column); }
     QModelIndex parent(const QModelIndex &) const override { return QModelIndex(); }
 
+private slots:
+    void readPortList();
+
 private:
-    Direction direction;
     mutable QList<RvMidiPortInfo> portList;
-    RvMidi &rvmidi;
+    RvMidi *rvmidi;
 };
 
-#endif // RVMIDIPORTMODEL_H
+#endif // RVMIDIOUTPORTMODEL_H

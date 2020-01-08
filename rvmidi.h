@@ -69,9 +69,11 @@ public:
     QList<RvMidiPortInfo> readableMidiPorts() const;
     QList<RvMidiPortInfo> writableMidiPorts() const;
 
-signals:
+Q_SIGNALS:
     void readablePortConnectionChanged( RvMidiClientPortId portID, bool isConnected);
     void writablePortConnectionChanged( RvMidiClientPortId portID, bool isConnected);
+
+    void portListChanged();
 
 private:
     MidiClientHandle handle;

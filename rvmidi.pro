@@ -27,7 +27,8 @@ SOURCES += \
         rvmidiclientportid.cpp \
         rvmidievent.cpp \
         rvmidiportinfo.cpp \
-        rvmidiportmodel.cpp
+    rvmidiinportmodel.cpp \
+    rvmidioutportmodel.cpp
 
 HEADERS += \
         rvmidi.h \
@@ -36,7 +37,8 @@ HEADERS += \
         rvmidievent.h \
         rvmidiportinfo.h \
         rvmidiportinfo_p.h \
-        rvmidiportmodel.h
+    rvmidiinportmodel.h \
+    rvmidioutportmodel.h
 
 unix {
     target.path = /usr/lib
