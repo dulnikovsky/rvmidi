@@ -113,19 +113,22 @@ RvMidi::RvMidi( const QString &clientName, QObject *parent)
             }
             else if(ev->type==SND_SEQ_EVENT_PORT_SUBSCRIBED)
             {
-                snd_seq_connect conn = ev->data.connect;
-                //emit portConnectionStatusChanged( RvMidiClientPortId(conn.sender.client, conn.sender.port),
-                //                                  RvMidiClientPortId(conn.dest.client, conn.dest.port),
-                //                                  true);
+                RvMidiClientPortId sender(ev->data.connect.sender.client, ev->data.connect.sender.port);
+                RvMidiClientPortId destination(ev->data.connect.dest.client, ev->data.connect.dest.port);
+                if( sender == thisOutPort )
+                    emit writablePortConnectionChanged( destination, true);
+                else if( destination == thisInPort)
+                    emit readablePortConnectionChanged( sender, true);
 
             }
             else if(ev->type==SND_SEQ_EVENT_PORT_UNSUBSCRIBED)
             {
-                snd_seq_connect conn = ev->data.connect;
-                //emit portConnectionStatusChanged( RvMidiClientPortId(conn.sender.client, conn.sender.port),
-                //                                  RvMidiClientPortId(conn.dest.client, conn.dest.port),
-                //                                  false);
-
+                RvMidiClientPortId sender(ev->data.connect.sender.client, ev->data.connect.sender.port);
+                RvMidiClientPortId destination(ev->data.connect.dest.client, ev->data.connect.dest.port);
+                if( sender == thisOutPort )
+                    emit writablePortConnectionChanged( destination, false);
+                else if( destination == thisInPort)
+                    emit readablePortConnectionChanged( sender, false);
             }
             else if(ev->type==SND_SEQ_EVENT_CLIENT_START)
             {
@@ -156,6 +159,7 @@ RvMidi::RvMidi( const QString &clientName, QObject *parent)
 
 RvMidi::~RvMidi()
 {
+#ifdef Q_OS_LINUX
     snd_seq_event_t event;
     snd_seq_ev_clear( &event);
     snd_seq_ev_set_subs( &event);
@@ -170,10 +174,7 @@ RvMidi::~RvMidi()
 
     snd_seq_event_output_direct(handle, &event);
     snd_seq_drain_output( handle);
-
-    //inThreadFuture.waitForFinished();
-
-    qDebug("DESCRUCTOR");
+#endif
 }
 
 bool RvMidi::connectReadablePort( RvMidiClientPortId portID)

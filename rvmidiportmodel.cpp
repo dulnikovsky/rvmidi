@@ -3,7 +3,7 @@
 #include "rvmidi.h"
 
 RvMidiPortModel::RvMidiPortModel(RvMidi &rvmidi, Direction d, QObject *parent)
-    :QAbstractItemModel( parent), rvmidi( rvmidi), direction(d)
+    :QAbstractItemModel( parent), direction(d), rvmidi( rvmidi)
 {
 
 }

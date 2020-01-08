@@ -9,6 +9,8 @@ class RvMidi;
 
 class RvMidiPortModel : public QAbstractItemModel
 {
+    Q_OBJECT
+
 public:
     enum Direction{ ReadablePorts, WritablePorts };
 
