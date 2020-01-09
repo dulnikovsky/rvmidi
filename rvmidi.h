@@ -23,10 +23,14 @@
 #define RVMIDI_H
 
 #include <QObject>
+#include <QMutex>
+#include <QVector>
 
 #include "rvmidi_global.h"
 
 #include "rvmidiportinfo.h"
+
+#include "rvmidievent.h"
 
 #ifdef Q_OS_LINUX
 typedef struct _snd_seq snd_seq_t;
@@ -79,6 +83,10 @@ private:
     MidiClientHandle handle;
     RvMidiClientPortId thisInPort;
     RvMidiClientPortId thisOutPort;
+
+    QVector<RvMidiEvent> incomingEvents;
+    QMutex incomingEventsGuard;
+    QVector<RvMidiEvent> outgoingEvents;
 
 #ifdef Q_OS_LINUX
     QList<RvMidiPortInfo> midiPortsAlsa( unsigned int capFilter) const;

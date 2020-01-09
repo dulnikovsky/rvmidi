@@ -22,60 +22,60 @@
 #ifndef RVMIDIEVENT_H
 #define RVMIDIEVENT_H
 
-#include <QEvent>
+#include <QByteArray>
 
-enum UserEventTypes {
-
-    MidiCommon = QEvent::User,
-    MidiSysEx,
-    MidiHeaderUsedEvent
-};
-
-class RvMidiEvent : public QEvent
+class RvMidiEvent
 {
-    Q_GADGET
+
 public:
 
-    enum MidiEventType { NoteOff=0x08, NoteOn, PolyphonicKeyPressure, ControlChange, ProgramChange, ChannelPressure, PitchBend, SystemCommon };
+    enum class Type : quint8 { NoteOff=0x80, NoteOn=0x90, PolyphonicKeyPressure=0xA0, ControlChange=0xB0, ProgramChange=0xC0, ChannelPressure=0xD0, PitchBend=0xE0,
+                               System=0xF0, SysEx=System, MtcQuarterFrame, SongPositionPointer, SongSelect, Reserved1, Reserved2, TuneRequest, EndOfSysEx,
+                                           TimingClock, Reserved3, Start, Continue, Stop, Reserved4, ActiveSensing, Reset };
 
-    explicit RvMidiEvent(Type type) : QEvent(type), dataUnion{nullptr}, port(0) {}
+    RvMidiEvent() = delete;
+
+    explicit RvMidiEvent(Type type) : port(0)
+    {
+        if( type == Type::SysEx)
+            dataUnion.dataArray = new QByteArray();
+        else
+            dataUnion.status = static_cast< uint8_t>(type);
+    }
+
+    RvMidiEvent( RvMidiEvent const&) = delete;
+    RvMidiEvent& operator=( RvMidiEvent const&) = delete;
 
     ~RvMidiEvent();
 
-    bool isValid() const
+    inline Type Type() const
     {
-        if(type()==(int)UserEventTypes::MidiCommon)
-            return ( !(dataUnion.status & 0x80));
+        if( dataUnion.status < static_cast< quint8>(Type::System))
+            return static_cast<enum Type> (dataUnion.status & 0xF0);
         else
-            return dataUnion.dataArray!=nullptr;
+            return static_cast<enum Type>(dataUnion.status);
     }
 
-    inline MidiEventType midiType() const { return static_cast<MidiEventType> (dataUnion.status>>4); }
-
-    inline quint8 Status() const { return dataUnion.status >> 4; }
     inline quint8 Channel() const { return dataUnion.status & 0x0F; }
+    inline void setChannel( quint8 ch) { dataUnion.status = (dataUnion.status & 0xF0) | ( ch & 0x0F); }
 
     inline quint8 Data1() const { return dataUnion.data1; }
     inline quint8 Data2() const { return dataUnion.data2; }
 
-    inline void setStatusByte( quint8 status) { dataUnion.status = status; }
     inline void setData1( quint8 data) { dataUnion.data1 = data; }
     inline void setData2( quint8 data) { dataUnion.data2 = data; }
 
     inline quint32 Port() const { return port; }
     inline void setPort(quint32 val) { port=val; }
 
-    QByteArray* sysExData()
+    inline QByteArray* sysExData()
     {
-        Q_ASSERT(type()==(int)UserEventTypes::MidiSysEx);
-
-        if(dataUnion.dataArray == nullptr)
-            dataUnion.dataArray = new QByteArray();
+        Q_ASSERT( Type()==Type::SysEx);
         return dataUnion.dataArray;
     }
 
 private:
-    union DataUnion
+    union
     {
         QByteArray *dataArray;
         struct
@@ -84,8 +84,7 @@ private:
             quint8 data1;
             quint8 data2;
         };
-    };
-    DataUnion dataUnion;
+    }dataUnion;
     quint32 port;
 };
 

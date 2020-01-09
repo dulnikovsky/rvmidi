@@ -71,47 +71,47 @@ RvMidi::RvMidi( const QString &clientName, QObject *parent)
     QtConcurrent::run([this]
     {
         snd_seq_event_t *ev;
-        RvMidiEvent *midievent = nullptr;
+        QByteArray sysExBufferArr;
         while (snd_seq_event_input(handle, &ev) >= 0)
         {
             if(ev->type==SND_SEQ_EVENT_SYSEX)
             {
-                QByteArray arr(static_cast<char *>(ev->data.ext.ptr), static_cast<int>(ev->data.ext.len));
-                if( midievent != nullptr)
+                QByteArray arr = QByteArray::fromRawData( static_cast<char *>(ev->data.ext.ptr), static_cast<int>(ev->data.ext.len));
+                if( arr.isEmpty())
+                    continue;
+
+                if( static_cast<enum RvMidiEvent::Type>( arr.at( 0)) == RvMidiEvent::Type::SysEx)
+                    sysExBufferArr.clear();
+
+                sysExBufferArr.append(arr);
+
+                if( static_cast<enum RvMidiEvent::Type>( arr.at(arr.size()-1)) == RvMidiEvent::Type::EndOfSysEx)
                 {
-                    QByteArray *data = midievent->sysExData();
-                    data->append(arr);
-                }
-                else
-                {
-                    midievent = new RvMidiEvent(static_cast<QEvent::Type>(UserEventTypes::MidiSysEx));
+                    RvMidiEvent rvEvent( RvMidiEvent::Type::SysEx);
                     quint32 port = ev->source.port;
                     port |= static_cast<quint32>(ev->source.client) << 8;
-                    midievent->setPort(port);
-                    QByteArray *data = midievent->sysExData();
+                    rvEvent.setPort(port);
+                    QByteArray *data = rvEvent.sysExData();
                     *data=arr;
-                }
-                if(static_cast<unsigned char>(arr.at(arr.size()-1)) == 0xF7)
-                {
                     //QApplication::postEvent(parent(), midievent);
-                    midievent=nullptr;
+                    sysExBufferArr.clear();
                 }
             }
             else if(ev->type==SND_SEQ_EVENT_PGMCHANGE)
             {
-                midievent = new RvMidiEvent(static_cast<QEvent::Type>(UserEventTypes::MidiCommon));
-                midievent->setStatusByte( (static_cast< unsigned char>( RvMidiEvent::MidiEventType::ProgramChange) << 4) | ( ev->data.raw8.d[0] & 0x0F ) );
-                midievent->setData1( ev->data.raw8.d[8] );
-                midievent->setData2(0);
+                RvMidiEvent rvEvent( RvMidiEvent::Type::ProgramChange);
+                rvEvent.setChannel( ev->data.raw8.d[0] & 0x0F);
+                rvEvent.setData1( ev->data.raw8.d[8] );
+                rvEvent.setData2(0);
                 //QApplication::postEvent(parent(), midievent);
             }
             else if(ev->type==SND_SEQ_EVENT_CONTROLLER)
             {
-                midievent = new RvMidiEvent(static_cast<QEvent::Type>(UserEventTypes::MidiCommon));
-                midievent->setStatusByte( (static_cast< unsigned char>( RvMidiEvent::MidiEventType::ControlChange) << 4) | ( ev->data.raw8.d[0] & 0x0F ) );
-                midievent->setData1( static_cast<quint8>( ev->data.control.param));
-                midievent->setData2( static_cast<quint8>( ev->data.control.value));
-                QCoreApplication::postEvent( this->parent(), midievent, Qt::HighEventPriority);
+                RvMidiEvent rvEvent( RvMidiEvent::Type::ControlChange);
+                rvEvent.setChannel( ev->data.raw8.d[0] & 0x0F);
+                rvEvent.setData1( static_cast<quint8>( ev->data.control.param));
+                rvEvent.setData2( static_cast<quint8>( ev->data.control.value));
+                //QCoreApplication::postEvent( this->parent(), midievent, Qt::HighEventPriority);
             }
             else if(ev->type==SND_SEQ_EVENT_PORT_SUBSCRIBED)
             {
