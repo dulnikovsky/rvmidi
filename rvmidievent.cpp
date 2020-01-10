@@ -24,30 +24,30 @@
 
 RvMidiEvent::~RvMidiEvent()
 {
-    if( Type() == Type::SysEx)
+    if( MidiType() == MidiType::SysEx)
         delete dataUnion.dataArray;
     //qDebug("MIDI Event deleted");
 }
 
 void RvMidiEvent::copy(const RvMidiEvent &other)
 {
-    if( other.status != static_cast< quint8>(Type::SysEx) && this->status != static_cast< quint8>(Type::SysEx))
+    if( other.status != static_cast< quint8>(MidiType::SysEx) && this->status != static_cast< quint8>(MidiType::SysEx))
     {
         this->dataUnion.data1 = other.dataUnion.data1;
         this->dataUnion.data2 = other.dataUnion.data2;
     }
-    else if( other.status == static_cast< quint8>(Type::SysEx) && this->status != static_cast< quint8>(Type::SysEx))
+    else if( other.status == static_cast< quint8>(MidiType::SysEx) && this->status != static_cast< quint8>(MidiType::SysEx))
     {
         dataUnion.dataArray = new QByteArray();
         *(this->dataUnion.dataArray) = *(other.dataUnion.dataArray);
     }
-    else if( other.status != static_cast< quint8>(Type::SysEx) && this->status == static_cast< quint8>(Type::SysEx))
+    else if( other.status != static_cast< quint8>(MidiType::SysEx) && this->status == static_cast< quint8>(MidiType::SysEx))
     {
         delete dataUnion.dataArray;
         this->dataUnion.data1 = other.dataUnion.data1;
         this->dataUnion.data2 = other.dataUnion.data2;
     }
-    else if( other.status == static_cast< quint8>(Type::SysEx) && this->status == static_cast< quint8>(Type::SysEx))
+    else if( other.status == static_cast< quint8>(MidiType::SysEx) && this->status == static_cast< quint8>(MidiType::SysEx))
     {
         *(this->dataUnion.dataArray) = *(other.dataUnion.dataArray);
     }

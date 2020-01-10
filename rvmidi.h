@@ -23,8 +23,6 @@
 #define RVMIDI_H
 
 #include <QObject>
-#include <QMutex>
-#include <QVector>
 
 #include "rvmidi_global.h"
 
@@ -54,12 +52,14 @@ class RVMIDISHARED_EXPORT RvMidi : public QObject
 
 public:
     RvMidi() = delete;
-    explicit RvMidi( const QString &clientName, QObject *parent = nullptr);
+    explicit RvMidi( const QString &clientName, QEvent::Type qmidieventusertype, QObject *parent = nullptr);
 
     RvMidi( RvMidi const&) = delete;
     RvMidi& operator=( RvMidi const&) = delete;
 
     ~RvMidi();
+
+    QEvent::Type QEventMidiType() const { return qeventmiditype; }
 
     bool connectReadablePort( RvMidiClientPortId portID);
     bool connectWritablePort( RvMidiClientPortId portID);
@@ -73,25 +73,19 @@ public:
     QList<RvMidiPortInfo> readableMidiPorts() const;
     QList<RvMidiPortInfo> writableMidiPorts() const;
 
-    RvMidiEvent readEvent();
-
 Q_SIGNALS:
     void readablePortConnectionChanged( RvMidiClientPortId portID, bool isConnected);
     void writablePortConnectionChanged( RvMidiClientPortId portID, bool isConnected);
 
     void portListChanged();
 
-    void eventsReceived();
-
 private:
     MidiClientHandle handle;
     RvMidiClientPortId thisInPort;
     RvMidiClientPortId thisOutPort;
 
-    QVector<RvMidiEvent> incomingEvents;
-    QMutex incomingEventsGuard;
-    QVector<RvMidiEvent> outgoingEvents;
-
+    QEvent::Type qeventmiditype{ QEvent::Type::None};
+    QObject *midieventreceiver;
 #ifdef Q_OS_LINUX
     QList<RvMidiPortInfo> midiPortsAlsa( unsigned int capFilter) const;
     bool subscribeReadablePortAlsa( unsigned char senderClient, unsigned char senderPort);
