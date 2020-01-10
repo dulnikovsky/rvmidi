@@ -39,6 +39,7 @@
 #include "rvmidievent.h"
 
 #include <QCoreApplication>
+#include <QMutexLocker>
 
 RvMidi::RvMidi( const QString &clientName, QObject *parent)
     :QObject( parent)
@@ -152,12 +153,20 @@ RvMidi::RvMidi( const QString &clientName, QObject *parent)
                 if( addr.port == thisOutPort.portId() && addr.client == thisOutPort.clientId())
                     break;
             }
+            else if(ev->type==SND_SEQ_EVENT_CLOCK)
+            {
+                RvMidiEvent rvEvent( RvMidiEvent::Type::TimingClock);
+                incomingEventsGuard.lock();
+                incomingEvents.append( rvEvent);
+                incomingEventsGuard.unlock();
+                emit eventsReceived();
+            }
             else if(ev->type==SND_SEQ_EVENT_SENSING)
             {
                 //qDebug("got SND_SEQ_EVENT_SENSING");
             }
 
-            qDebug("MIDI Event. Type = %d",ev->type);
+            qDebug("MIDI Event. Type = %d, sizeof=%ld", ev->type, sizeof( RvMidiEvent));
             snd_seq_free_event(ev);
         }
     });
@@ -328,6 +337,12 @@ QList<RvMidiPortInfo> RvMidi::writableMidiPorts() const
     }
 #endif
     return portlist;
+}
+
+RvMidiEvent RvMidi::readEvent()
+{
+    QMutexLocker locker( &incomingEventsGuard);
+    return incomingEvents.takeFirst();
 }
 
 #ifdef Q_OS_LINUX

@@ -28,3 +28,35 @@ RvMidiEvent::~RvMidiEvent()
         delete dataUnion.dataArray;
     //qDebug("MIDI Event deleted");
 }
+
+void RvMidiEvent::copy(const RvMidiEvent &other)
+{
+    if( other.status != static_cast< quint8>(Type::SysEx) && this->status != static_cast< quint8>(Type::SysEx))
+    {
+        this->dataUnion.data1 = other.dataUnion.data1;
+        this->dataUnion.data2 = other.dataUnion.data2;
+    }
+    else if( other.status == static_cast< quint8>(Type::SysEx) && this->status != static_cast< quint8>(Type::SysEx))
+    {
+        dataUnion.dataArray = new QByteArray();
+        *(this->dataUnion.dataArray) = *(other.dataUnion.dataArray);
+    }
+    else if( other.status != static_cast< quint8>(Type::SysEx) && this->status == static_cast< quint8>(Type::SysEx))
+    {
+        delete dataUnion.dataArray;
+        this->dataUnion.data1 = other.dataUnion.data1;
+        this->dataUnion.data2 = other.dataUnion.data2;
+    }
+    else if( other.status == static_cast< quint8>(Type::SysEx) && this->status == static_cast< quint8>(Type::SysEx))
+    {
+        *(this->dataUnion.dataArray) = *(other.dataUnion.dataArray);
+    }
+    else
+    {
+        this->dataUnion.data1 = other.dataUnion.data1;
+        this->dataUnion.data2 = other.dataUnion.data2;
+    }
+
+    this->status = other.status;
+    this->port = other.port;
+}
