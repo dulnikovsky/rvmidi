@@ -47,14 +47,9 @@ void RvMidiEvent::copy(const RvMidiEvent &other)
         this->dataUnion.data1 = other.dataUnion.data1;
         this->dataUnion.data2 = other.dataUnion.data2;
     }
-    else if( other.status == static_cast< quint8>(MidiType::SysEx) && this->status == static_cast< quint8>(MidiType::SysEx))
-    {
-        *(this->dataUnion.dataArray) = *(other.dataUnion.dataArray);
-    }
     else
     {
-        this->dataUnion.data1 = other.dataUnion.data1;
-        this->dataUnion.data2 = other.dataUnion.data2;
+        *(this->dataUnion.dataArray) = *(other.dataUnion.dataArray);
     }
 
     this->status = other.status;

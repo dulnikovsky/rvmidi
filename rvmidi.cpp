@@ -109,10 +109,26 @@ RvMidi::RvMidi( const QString &clientName, QEvent::Type evt, QObject *parent)
                 rvmidievent->setData2(0);
                 QCoreApplication::postEvent( midieventreceiver, rvmidievent);
             }
+            else if( ev->type==SND_SEQ_EVENT_NOTEON )
+            {
+                rvmidievent = new RvMidiEvent( RvMidiEvent::MidiType::NoteOn, qeventmiditype);
+                rvmidievent->setChannel( static_cast<quint8>( ev->data.note.channel));
+                rvmidievent->setData1( static_cast<quint8>( ev->data.note.note));
+                rvmidievent->setData2( static_cast<quint8>( ev->data.note.velocity));
+                QCoreApplication::postEvent( midieventreceiver, rvmidievent, Qt::HighEventPriority);
+            }
+            else if(ev->type==SND_SEQ_EVENT_NOTEOFF)
+            {
+                rvmidievent = new RvMidiEvent( RvMidiEvent::MidiType::NoteOff, qeventmiditype);
+                rvmidievent->setChannel( static_cast<quint8>( ev->data.note.channel));
+                rvmidievent->setData1( static_cast<quint8>( ev->data.note.note));
+                rvmidievent->setData2( static_cast<quint8>( ev->data.note.velocity));
+                QCoreApplication::postEvent( midieventreceiver, rvmidievent, Qt::HighEventPriority);
+            }
             else if(ev->type==SND_SEQ_EVENT_CONTROLLER)
             {
                 rvmidievent = new RvMidiEvent( RvMidiEvent::MidiType::ControlChange, qeventmiditype);
-                rvmidievent->setChannel( ev->data.raw8.d[0] & 0x0F);
+                rvmidievent->setChannel( static_cast<quint8>( ev->data.control.channel));
                 rvmidievent->setData1( static_cast<quint8>( ev->data.control.param));
                 rvmidievent->setData2( static_cast<quint8>( ev->data.control.value));
                 QCoreApplication::postEvent( midieventreceiver, rvmidievent, Qt::HighEventPriority);

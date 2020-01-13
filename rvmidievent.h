@@ -47,6 +47,16 @@ public:
         status = static_cast< uint8_t>(miditype);
     }
 
+    explicit RvMidiEvent(quint8 statusByte, QEvent::Type type) : QEvent(type), port(0)
+    {
+        if( statusByte == static_cast< quint8>(MidiType::SysEx))
+            dataUnion.dataArray = new QByteArray();
+        else
+            dataUnion.data1 = dataUnion.data2 = 0;
+
+        status = statusByte;
+    }
+
     RvMidiEvent( RvMidiEvent const &other) : QEvent( other)
     {
         copy( other);
