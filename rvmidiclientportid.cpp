@@ -35,4 +35,8 @@ bool operator ==(const RvMidiClientPortId &a, const RvMidiClientPortId &b)
 {
     return std::tie(a.client, a.port) == std::tie(b.client, b.port);
 }
+bool operator <(const RvMidiClientPortId &a, const RvMidiClientPortId &b)
+{
+    return std::tie(a.client, a.port) < std::tie(b.client, b.port);
+}
 #endif

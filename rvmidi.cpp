@@ -71,16 +71,37 @@ RvMidi::RvMidi( const QString &clientName, QObject *parent)
     err = snd_seq_subscribe_port(handle, subs);
     if (err != 0)
     {
-        puts ("snd_seq_subscribe_port on the announce port fails: ");
+        puts( "snd_seq_subscribe_port on the announce port failed!");
     }
 
-    QtConcurrent::run([this]
+    inThreadFuture = QtConcurrent::run([this]
     {
+
+        QMap<RvMidiClientPortId, unsigned int> capacityCacheMap;
+        snd_seq_client_info_t *clientinfo;
+        snd_seq_client_info_alloca( &clientinfo);
+        snd_seq_port_info_t *portinfo;
+        snd_seq_port_info_alloca( &portinfo);
+        snd_seq_client_info_set_client( clientinfo, -1);
+        while (snd_seq_query_next_client( handle, clientinfo) >= 0)
+        {
+            int clientId = snd_seq_client_info_get_client( clientinfo);
+            /* reset query info */
+            snd_seq_port_info_set_client( portinfo, clientId);
+            snd_seq_port_info_set_port( portinfo, -1);
+            while (snd_seq_query_next_port( handle, portinfo) >= 0)
+            {
+                unsigned int cap = snd_seq_port_info_get_capability(portinfo);
+                RvMidiClientPortId mcpId( clientId, snd_seq_port_info_get_port(portinfo));
+                capacityCacheMap.insert( mcpId, cap);
+            }
+        }
+
         snd_seq_event_t *ev;
         RvMidiEvent *midievent = nullptr;
-        while (snd_seq_event_input(handle, &ev) >= 0)
+        while( snd_seq_event_input(handle, &ev) >= 0)
         {
-            if(ev->type==SND_SEQ_EVENT_SYSEX)
+            if( ev->type==SND_SEQ_EVENT_SYSEX)
             {
                 QByteArray arr(static_cast<char *>(ev->data.ext.ptr), static_cast<int>(ev->data.ext.len));
                 if( midievent != nullptr)
@@ -103,7 +124,7 @@ RvMidi::RvMidi( const QString &clientName, QObject *parent)
                     midievent=nullptr;
                 }
             }
-            else if(ev->type==SND_SEQ_EVENT_PGMCHANGE)
+            else if( ev->type==SND_SEQ_EVENT_PGMCHANGE)
             {
                 midievent = new RvMidiEvent(static_cast<QEvent::Type>(UserEventTypes::MidiCommon));
                 midievent->setStatusByte( (static_cast< unsigned char>( RvMidiEvent::MidiEventType::ProgramChange) << 4) | ( ev->data.raw8.d[0] & 0x0F ) );
@@ -111,7 +132,7 @@ RvMidi::RvMidi( const QString &clientName, QObject *parent)
                 midievent->setData2(0);
                 //QApplication::postEvent(parent(), midievent);
             }
-            else if(ev->type==SND_SEQ_EVENT_CONTROLLER)
+            else if( ev->type==SND_SEQ_EVENT_CONTROLLER)
             {
                 midievent = new RvMidiEvent(static_cast<QEvent::Type>(UserEventTypes::MidiCommon));
                 midievent->setStatusByte( (static_cast< unsigned char>( RvMidiEvent::MidiEventType::ControlChange) << 4) | ( ev->data.raw8.d[0] & 0x0F ) );
@@ -119,7 +140,7 @@ RvMidi::RvMidi( const QString &clientName, QObject *parent)
                 midievent->setData2( ev->data.raw8.d[8]);
                 //QApplication::postEvent(parent(), midievent);
             }
-            else if(ev->type==SND_SEQ_EVENT_PORT_SUBSCRIBED)
+            else if( ev->type==SND_SEQ_EVENT_PORT_SUBSCRIBED)
             {
                 snd_seq_connect conn = ev->data.connect;
                 //emit portConnectionStatusChanged( RvMidiClientPortId(conn.sender.client, conn.sender.port),
@@ -127,7 +148,7 @@ RvMidi::RvMidi( const QString &clientName, QObject *parent)
                 //                                  true);
 
             }
-            else if(ev->type==SND_SEQ_EVENT_PORT_UNSUBSCRIBED)
+            else if( ev->type==SND_SEQ_EVENT_PORT_UNSUBSCRIBED)
             {
                 snd_seq_connect conn = ev->data.connect;
                 //emit portConnectionStatusChanged( RvMidiClientPortId(conn.sender.client, conn.sender.port),
@@ -135,18 +156,39 @@ RvMidi::RvMidi( const QString &clientName, QObject *parent)
                 //                                  false);
 
             }
-            else if(ev->type==SND_SEQ_EVENT_CLIENT_START)
-            {
-                snd_seq_addr_t addr = ev->data.addr;
-                //emit portClientPortStatusChanged( RvMidiClientPortId(addr.client, addr.port), true);
-            }
             else if(ev->type==SND_SEQ_EVENT_CLIENT_EXIT)
             {
-                break;
-                snd_seq_addr_t addr = ev->data.addr;
-                //emit portClientPortStatusChanged( RvMidiClientPortId(addr.client, addr.port), false);
+                if(ev->source.client == snd_seq_client_id(handle))
+                {
+                    snd_seq_free_event(ev);
+                    break;
+                }
             }
-            else if(ev->type==SND_SEQ_EVENT_SENSING)
+            else if( ev->type==SND_SEQ_EVENT_PORT_START)
+            {
+                RvMidiClientPortId mcpid( ev->data.addr.client, ev->data.addr.port);
+
+                snd_seq_get_any_port_info(handle, ev->data.addr.client, ev->data.addr.port, portinfo);
+                unsigned int cap = snd_seq_port_info_get_capability(portinfo);
+                if( (cap & (SND_SEQ_PORT_CAP_READ | SND_SEQ_PORT_CAP_SUBS_READ)) == (SND_SEQ_PORT_CAP_READ | SND_SEQ_PORT_CAP_SUBS_READ))
+                    emit readableMidiPortCreated( mcpid);
+                if( (cap & (SND_SEQ_PORT_CAP_WRITE | SND_SEQ_PORT_CAP_SUBS_WRITE)) == (SND_SEQ_PORT_CAP_WRITE | SND_SEQ_PORT_CAP_SUBS_WRITE))
+                    emit writableMidiPortCreated( mcpid);
+
+                capacityCacheMap.insert( mcpid, cap);
+
+            }
+            else if( ev->type==SND_SEQ_EVENT_PORT_EXIT)
+            {
+                RvMidiClientPortId mcpid( ev->data.addr.client, ev->data.addr.port);
+                unsigned int cap = capacityCacheMap.take( mcpid);
+
+                if( (cap & (SND_SEQ_PORT_CAP_READ | SND_SEQ_PORT_CAP_SUBS_READ)) == (SND_SEQ_PORT_CAP_READ | SND_SEQ_PORT_CAP_SUBS_READ))
+                    emit readableMidiPortDestroyed( RvMidiClientPortId( ev->data.addr.client, ev->data.addr.port));
+                if( (cap & (SND_SEQ_PORT_CAP_WRITE | SND_SEQ_PORT_CAP_SUBS_WRITE)) == (SND_SEQ_PORT_CAP_WRITE | SND_SEQ_PORT_CAP_SUBS_WRITE))
+                    emit writableMidiPortDestroyed( RvMidiClientPortId( ev->data.addr.client, ev->data.addr.port));
+            }
+            else if( ev->type==SND_SEQ_EVENT_SENSING)
             {
                 //qDebug("got SND_SEQ_EVENT_SENSING");
             }
@@ -179,9 +221,7 @@ RvMidi::~RvMidi()
     snd_seq_event_output_direct(handle, &event);
     snd_seq_drain_output( handle);
 
-    //inThreadFuture.waitForFinished();
-
-    qDebug("DESCRUCTOR");
+    inThreadFuture.waitForFinished();
 }
 
 QList<RvMidiPortInfo> RvMidi::readableMidiPorts()
@@ -241,7 +281,6 @@ QList<RvMidiPortInfo> RvMidi::midiPortsAlsa(unsigned int capFilter)
 
     snd_seq_client_info_t *cinfo;
     snd_seq_port_info_t *pinfo;
-    int count;
 
     snd_seq_client_info_alloca( &cinfo);
     snd_seq_port_info_alloca( &pinfo);
@@ -255,11 +294,12 @@ QList<RvMidiPortInfo> RvMidi::midiPortsAlsa(unsigned int capFilter)
         /* reset query info */
         snd_seq_port_info_set_client( pinfo, clientId);
         snd_seq_port_info_set_port( pinfo, -1);
-        count = 0;
+
         while (snd_seq_query_next_port( handle, pinfo) >= 0)
         {
             unsigned int cap = snd_seq_port_info_get_capability(pinfo);
-            if( cap & capFilter)
+            qDebug("Cap=%d", cap);
+            if( (cap & capFilter) == capFilter)
             {
                 QScopedPointer<RvMidiPortInfoPrivate> info(new RvMidiPortInfoPrivate);
                 RvMidiClientPortId mcpId( clientId, snd_seq_port_info_get_port(pinfo));
@@ -268,7 +308,6 @@ QList<RvMidiPortInfo> RvMidi::midiPortsAlsa(unsigned int capFilter)
                 info->isVirtual = !(cap & SND_SEQ_PORT_TYPE_HARDWARE);
                 portlist.append( RvMidiPortInfo( *info.take()));
             }
-            count++;
         }
     }
     return portlist;

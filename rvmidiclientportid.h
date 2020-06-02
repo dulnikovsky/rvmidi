@@ -52,6 +52,8 @@ public:
 
     friend bool operator ==(const RvMidiClientPortId &a, const RvMidiClientPortId &b);
 
+    friend bool operator <(const RvMidiClientPortId &a, const RvMidiClientPortId &b);
+
     QString toString() const
     {
         return QString::number(client) + ":" + QString::number(port);

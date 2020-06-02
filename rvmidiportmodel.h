@@ -9,6 +9,8 @@ class RvMidi;
 
 class RvMidiPortModel : public QAbstractItemModel
 {
+    Q_OBJECT
+
 public:
     enum Direction{ ReadablePorts, WritablePorts };
 
@@ -30,6 +32,10 @@ private:
     Direction direction;
     mutable QList<RvMidiPortInfo> portList;
     RvMidi &rvmidi;
+
+private slots:
+    void portCreated(RvMidiClientPortId id);
+    void portRemoved(RvMidiClientPortId id);
 };
 
 #endif // RVMIDIPORTMODEL_H

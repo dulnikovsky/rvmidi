@@ -34,6 +34,7 @@ typedef snd_seq_t* MidiClientHandle;
 
 Q_DECLARE_METATYPE(RvMidiClientPortId)
 
+#include <QFuture>
 #endif
 
 #ifdef Q_OS_MACOS
@@ -58,6 +59,15 @@ public:
 
     QList<RvMidiPortInfo> writableMidiPorts();
 
+signals:
+    void readableMidiPortCreated( RvMidiClientPortId id);
+
+    void writableMidiPortCreated( RvMidiClientPortId id);
+
+    void readableMidiPortDestroyed( RvMidiClientPortId id);
+
+    void writableMidiPortDestroyed( RvMidiClientPortId id);
+
 private:
     MidiClientHandle handle;
     RvMidiClientPortId thisInPort;
@@ -65,6 +75,7 @@ private:
 
 #ifdef Q_OS_LINUX
     QList<RvMidiPortInfo> midiPortsAlsa( unsigned int capFilter);
+    QFuture<void>inThreadFuture;
 #endif
 };
 
