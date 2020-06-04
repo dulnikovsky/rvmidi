@@ -224,6 +224,54 @@ RvMidi::~RvMidi()
     inThreadFuture.waitForFinished();
 }
 
+bool RvMidi::connectToRedeablePort(RvMidiClientPortId id)
+{
+#ifdef Q_OS_LINUX
+    bool ret =  subscribeUnsubscribePort( id, thisInPort );
+    if( ret == true)
+    {
+        emit( readableMidiPortConnected(id));
+    }
+    return ret;
+#endif
+}
+
+bool RvMidi::connectToWriteblePort(RvMidiClientPortId id)
+{
+#ifdef Q_OS_LINUX
+    bool ret =  subscribeUnsubscribePort( thisOutPort, id);
+    if( ret == true)
+    {
+        emit( writableMidiPortConnected(id));
+    }
+    return ret;
+#endif
+}
+
+bool RvMidi::disconnectFromReadeablePort(RvMidiClientPortId id)
+{
+#ifdef Q_OS_LINUX
+    bool ret =  subscribeUnsubscribePort( id, thisInPort, true);
+    if( ret == true)
+    {
+        emit( readableMidiPortDisconnected(id));
+    }
+    return ret;
+#endif
+}
+
+bool RvMidi::disconnectFromWriteblePort(RvMidiClientPortId id)
+{
+#ifdef Q_OS_LINUX
+    bool ret =  subscribeUnsubscribePort( thisOutPort, id, true);
+    if( ret == true)
+    {
+        emit( writableMidiPortDisconnected(id));
+    }
+    return ret;
+#endif
+}
+
 QList<RvMidiPortInfo> RvMidi::readableMidiPorts()
 {
     QList<RvMidiPortInfo> portlist;
@@ -274,6 +322,19 @@ QList<RvMidiPortInfo> RvMidi::writableMidiPorts()
     return portlist;
 }
 
+QSet<RvMidiClientPortId> RvMidi::connectedReadableMidiPortSet()
+{
+    QSet<RvMidiClientPortId> idList;
+// TODO
+    return idList;
+}
+QSet<RvMidiClientPortId> RvMidi::connectedWritableMidiPortSet()
+{
+    QSet<RvMidiClientPortId> idList;
+//TODO
+    return idList;
+}
+
 #ifdef Q_OS_LINUX
 QList<RvMidiPortInfo> RvMidi::midiPortsAlsa(unsigned int capFilter)
 {
@@ -312,5 +373,25 @@ QList<RvMidiPortInfo> RvMidi::midiPortsAlsa(unsigned int capFilter)
     }
     return portlist;
 }
+
+bool RvMidi::subscribeUnsubscribePort( RvMidiClientPortId srcId,  RvMidiClientPortId destId, bool unsubscribe)
+{
+    snd_seq_addr_t sender, dest;
+    snd_seq_port_subscribe_t* subs;
+    snd_seq_port_subscribe_alloca(&subs);
+
+    sender.client = static_cast<unsigned char>( srcId.clientId());
+    sender.port = static_cast<unsigned char>( srcId.portId());
+    dest.client = static_cast<unsigned char>( destId.clientId());
+    dest.port = static_cast<unsigned char>( destId.portId());
+
+    snd_seq_port_subscribe_set_sender(subs, &sender);
+    snd_seq_port_subscribe_set_dest(subs, &dest);
+    if( unsubscribe)
+        return snd_seq_unsubscribe_port(handle, subs) == 0;
+    else
+        return snd_seq_subscribe_port(handle, subs) == 0;
+}
+
 #endif
 

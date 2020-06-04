@@ -2,7 +2,7 @@
 #define RVMIDIPORTMODEL_H
 
 #include <QAbstractItemModel>
-
+#include <QSet>
 #include "rvmidiportinfo.h"
 
 class RvMidi;
@@ -31,11 +31,14 @@ public:
 private:
     Direction direction;
     mutable QList<RvMidiPortInfo> portList;
+    mutable QSet<RvMidiClientPortId> connectedPortSet;
     RvMidi &rvmidi;
 
 private slots:
     void portCreated(RvMidiClientPortId id);
     void portRemoved(RvMidiClientPortId id);
+    void portConnected(RvMidiClientPortId id);
+    void portDisconnected(RvMidiClientPortId id);
 };
 
 #endif // RVMIDIPORTMODEL_H

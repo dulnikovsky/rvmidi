@@ -56,8 +56,21 @@ public:
     ~RvMidi();
 
     QList<RvMidiPortInfo> readableMidiPorts();
-
     QList<RvMidiPortInfo> writableMidiPorts();
+
+    //TODO
+    QSet<RvMidiClientPortId> connectedReadableMidiPortSet();
+    QSet<RvMidiClientPortId> connectedWritableMidiPortSet();
+
+public slots:
+
+    bool connectToRedeablePort(RvMidiClientPortId id);
+
+    bool connectToWriteblePort(RvMidiClientPortId id);
+
+    bool disconnectFromReadeablePort(RvMidiClientPortId id);
+
+    bool disconnectFromWriteblePort(RvMidiClientPortId id);
 
 signals:
     void readableMidiPortCreated( RvMidiClientPortId id);
@@ -68,6 +81,14 @@ signals:
 
     void writableMidiPortDestroyed( RvMidiClientPortId id);
 
+    void readableMidiPortConnected( RvMidiClientPortId id);
+
+    void writableMidiPortConnected( RvMidiClientPortId id);
+
+    void readableMidiPortDisconnected( RvMidiClientPortId id);
+
+    void writableMidiPortDisconnected( RvMidiClientPortId id);
+
 private:
     MidiClientHandle handle;
     RvMidiClientPortId thisInPort;
@@ -76,6 +97,7 @@ private:
 #ifdef Q_OS_LINUX
     QList<RvMidiPortInfo> midiPortsAlsa( unsigned int capFilter);
     QFuture<void>inThreadFuture;
+    bool subscribeUnsubscribePort( RvMidiClientPortId srcId,  RvMidiClientPortId destId, bool unsubscribe = false);
 #endif
 };
 
